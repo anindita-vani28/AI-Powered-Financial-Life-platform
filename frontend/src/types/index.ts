@@ -3,7 +3,14 @@ export interface User {
   email: string;
   name: string;
   role: 'consumer' | 'professional';
+  avatar?: string;
   createdAt: Date;
+}
+
+export interface AuthResponse {
+  user: User;
+  token: string;
+  refreshToken?: string;
 }
 
 export interface Family {

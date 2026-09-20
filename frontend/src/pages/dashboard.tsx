@@ -3,13 +3,14 @@
 import { useEffect } from 'react';
 import { TrendingUp, FileText, AlertCircle, Users } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
+import ProtectedRoute from '@/components/common/ProtectedRoute';
 import HealthScoreCard from '@/components/dashboard/HealthScoreCard';
 import AlertsCard from '@/components/dashboard/AlertsCard';
 import DocumentsCard from '@/components/dashboard/DocumentsCard';
 import StatsCard from '@/components/dashboard/StatsCard';
 import HealthScoreTrend from '@/components/dashboard/HealthScoreTrend';
 
-export default function Dashboard() {
+function DashboardContent() {
   useEffect(() => {
     // You can fetch dashboard data here when API is ready
   }, []);
@@ -138,5 +139,13 @@ export default function Dashboard() {
         </div>
       </div>
     </Layout>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }
