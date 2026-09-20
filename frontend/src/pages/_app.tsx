@@ -1,6 +1,8 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useAuthStore } from "@/hooks/useAuth";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -11,10 +13,21 @@ const queryClient = new QueryClient({
   },
 });
 
-export default function App({ Component, pageProps }: AppProps) {
+function AppWrapper({ Component, pageProps }: AppProps) {
+  const { fetchCurrentUser } = useAuthStore();
+
+  useEffect(() => {
+    // Initialize auth on app load
+    fetchCurrentUser();
+  }, [fetchCurrentUser]);
+
+  return <Component {...pageProps} />;
+}
+
+export default function App(props: AppProps) {
   return (
     <QueryClientProvider client={queryClient}>
-      <Component {...pageProps} />
+      <AppWrapper {...props} />
     </QueryClientProvider>
   );
 }
