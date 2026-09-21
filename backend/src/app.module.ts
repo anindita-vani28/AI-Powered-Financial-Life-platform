@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { DocumentsModule } from './documents/documents.module';
+import { AlertsModule } from './alerts/alerts.module';
 import { HealthScoreModule } from './health-score/health-score.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { HealthScoreModule } from './health-score/health-score.module';
     AuthModule,
     UsersModule,
     DocumentsModule,
+    AlertsModule,
     HealthScoreModule,
   ],
   controllers: [AppController],

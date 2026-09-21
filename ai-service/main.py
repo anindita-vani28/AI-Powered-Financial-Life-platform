@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HealthCheck
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,6 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -37,6 +39,7 @@ async def health_check():
         "service": "financial-life-ai",
         "version": "0.1.0"
     }
+
 
 @app.get("/")
 async def root():

@@ -32,7 +32,7 @@ export default function Login() {
 
     try {
       await login(email, password);
-      router.push('/dashboard');
+      router.replace('/dashboard');
     } catch (err: any) {
       setFormError(err.response?.data?.message || 'Login failed. Please try again.');
     }

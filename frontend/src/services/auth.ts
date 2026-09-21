@@ -1,6 +1,27 @@
 import api from './api';
 import { User, AuthResponse } from '@/types';
 
+const safeStorage = {
+  getItem: (key: string) => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    return window.localStorage.getItem(key);
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(key, value);
+  },
+  removeItem: (key: string) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.removeItem(key);
+  },
+};
+
 export const authService = {
   async register(email: string, password: string, name: string): Promise<AuthResponse> {
     const { data } = await api.post('/auth/register', {
@@ -9,9 +30,9 @@ export const authService = {
       name,
     });
     if (data.token) {
-      localStorage.setItem('token', data.token);
+      safeStorage.setItem('token', data.token);
       if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
+        safeStorage.setItem('refreshToken', data.refreshToken);
       }
     }
     return data;
@@ -23,9 +44,9 @@ export const authService = {
       password,
     });
     if (data.token) {
-      localStorage.setItem('token', data.token);
+      safeStorage.setItem('token', data.token);
       if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
+        safeStorage.setItem('refreshToken', data.refreshToken);
       }
     }
     return data;
@@ -37,8 +58,8 @@ export const authService = {
     } catch (error) {
       console.error('Logout error:', error);
     }
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    safeStorage.removeItem('token');
+    safeStorage.removeItem('refreshToken');
   },
 
   async getCurrentUser(): Promise<User> {
@@ -47,7 +68,7 @@ export const authService = {
   },
 
   async refreshToken(): Promise<string> {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = safeStorage.getItem('refreshToken');
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
@@ -57,7 +78,7 @@ export const authService = {
     });
 
     if (data.token) {
-      localStorage.setItem('token', data.token);
+      safeStorage.setItem('token', data.token);
     }
     return data.token;
   },
@@ -78,7 +99,7 @@ export const authService = {
   },
 
   getToken(): string | null {
-    return localStorage.getItem('token');
+    return safeStorage.getItem('token');
   },
 
   isAuthenticated(): boolean {
