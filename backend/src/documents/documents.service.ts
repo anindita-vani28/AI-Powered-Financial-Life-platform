@@ -1,59 +1,77 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Document, DocumentType } from './entities/document.entity';
+import { CreateDocumentDto } from './dto/create-document.dto';
 
 @Injectable()
 export class DocumentsService {
-  getDocuments(filter?: string) {
-    const documents = [
-      {
-        id: 'doc-1',
-        name: '2026 W-2.pdf',
-        type: 'tax',
-        size: '1.2 MB',
-        uploadedAt: new Date().toISOString(),
-      },
-      {
-        id: 'doc-2',
-        name: 'Health Insurance Card.pdf',
-        type: 'insurance',
-        size: '820 KB',
-        uploadedAt: new Date().toISOString(),
-      },
-      {
-        id: 'doc-3',
-        name: 'Bank Statement.pdf',
-        type: 'banking',
-        size: '1.5 MB',
-        uploadedAt: new Date().toISOString(),
-      },
-    ];
+  constructor(
+    @InjectRepository(Document)
+    private documentsRepository: Repository<Document>,
+  ) {}
 
-    if (!filter) {
-      return documents;
+  async create(userId: string, createDocumentDto: CreateDocumentDto): Promise<Document> {
+    const document = this.documentsRepository.create({
+      ...createDocumentDto,
+      userId,
+    });
+    return await this.documentsRepository.save(document);
+  }
+
+  async findAll(userId: string, type?: DocumentType) {
+    const query = this.documentsRepository.createQueryBuilder('document')
+      .where('document.userId = :userId', { userId })
+      .andWhere('document.isActive = :isActive', { isActive: true });
+
+    if (type) {
+      query.andWhere('document.type = :type', { type });
     }
 
-    return documents.filter((document) => document.type === filter);
+    return await query.orderBy('document.createdAt', 'DESC').getMany();
   }
 
-  uploadDocument() {
-    return {
-      id: 'doc-new',
-      name: 'Uploaded Document.pdf',
-      type: 'general',
-      size: '1.0 MB',
-      uploadedAt: new Date().toISOString(),
-    };
+  async findById(documentId: string, userId: string): Promise<Document> {
+    const document = await this.documentsRepository.findOne({
+      where: { id: documentId, userId, isActive: true },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    return document;
   }
 
-  deleteDocument(documentId: string) {
-    return {
-      success: true,
-      message: `Document ${documentId} deleted`,
-    };
+  async delete(documentId: string, userId: string): Promise<void> {
+    const document = await this.findById(documentId, userId);
+    await this.documentsRepository.update(document.id, { isActive: false });
   }
 
-  extractDocumentText(documentId: string) {
-    return {
-      text: `Extracted text for ${documentId}: Employer details, tax summary, and policy information captured successfully.`,
-    };
+  async extractText(documentId: string, userId: string): Promise<string> {
+    const document = await this.findById(documentId, userId);
+    if (!document.extractedText) {
+      return 'No text extracted. Document processing pending.';
+    }
+    return document.extractedText;
+  }
+
+  async updateExtractedText(documentId: string, extractedText: string): Promise<Document> {
+    const document = await this.documentsRepository.findOne({
+      where: { id: documentId },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    document.extractedText = extractedText;
+    return await this.documentsRepository.save(document);
+  }
+
+  async getDocumentCount(userId: string): Promise<number> {
+    return await this.documentsRepository.count({
+      where: { userId, isActive: true },
+    });
   }
 }
