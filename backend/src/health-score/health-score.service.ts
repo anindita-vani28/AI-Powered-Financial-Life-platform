@@ -1,78 +1,104 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { HealthScore } from './entities/health-score.entity';
+import { CreateHealthScoreDto } from './dto/create-health-score.dto';
 
 @Injectable()
 export class HealthScoreService {
-  getHealthScore() {
-    const now = new Date().toISOString();
+  constructor(
+    @InjectRepository(HealthScore)
+    private healthScoreRepository: Repository<HealthScore>,
+  ) {}
 
-    return {
-      id: 'health-score-demo',
-      userId: 'demo-user',
-      overallScore: 84,
-      breakdown: {
-        insurance: {
-          score: 88,
-          status: 'Healthy',
-          gaps: ['Review umbrella coverage'],
-        },
-        tax: {
-          score: 78,
-          status: 'On track',
-          missingDocs: 2,
-        },
-        credit: {
-          score: 81,
-          trend: 'up',
-          recentChanges: 4,
-        },
-        claims: {
-          score: 72,
-          pending: 1,
-          resolved: 6,
-        },
-        documents: {
-          score: 91,
-          totalCount: 18,
-          organized: 16,
-        },
-      },
-      opportunities: [
-        {
-          id: 'opp-1',
-          type: 'deduction',
-          title: 'Tax deduction review',
-          description: 'Your current filing profile suggests a possible deduction review before quarter-end.',
-          impact: 'Could reduce annual tax burden by 3-5%',
-          priority: 'medium',
-          action: 'Upload recent tax documents',
-        },
-        {
-          id: 'opp-2',
-          type: 'coverage',
-          title: 'Policy coverage gap',
-          description: 'Home and auto coverage are under-matched relative to recent expense trends.',
-          impact: 'Protects against uninsured risk exposure',
-          priority: 'high',
-          action: 'Review umbrella coverage',
-        },
-      ],
-      updatedAt: now,
-    };
+  async create(userId: string, createHealthScoreDto: CreateHealthScoreDto): Promise<HealthScore> {
+    const healthScore = this.healthScoreRepository.create({
+      ...createHealthScoreDto,
+      userId,
+    });
+    return await this.healthScoreRepository.save(healthScore);
   }
 
-  refreshHealthScore() {
-    return {
-      ...this.getHealthScore(),
-      overallScore: 86,
-      updatedAt: new Date().toISOString(),
-    };
+  async getCurrentScore(userId: string): Promise<HealthScore> {
+    const healthScore = await this.healthScoreRepository.findOne({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!healthScore) {
+      return await this.createDefaultScore(userId);
+    }
+
+    return healthScore;
   }
 
-  getHistory(limit = 12) {
-    return Array.from({ length: Math.min(limit, 6) }, (_, index) => ({
-      id: `score-${index + 1}`,
-      score: 74 + index * 3,
-      date: new Date(Date.now() - index * 86400000).toISOString(),
+  async getScoreHistory(userId: string, limit: number = 12): Promise<HealthScore[]> {
+    return await this.healthScoreRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
+  async refreshScore(userId: string, createHealthScoreDto: CreateHealthScoreDto): Promise<HealthScore> {
+    const currentScore = await this.getCurrentScore(userId);
+
+    const newScore = this.healthScoreRepository.create({
+      ...createHealthScoreDto,
+      userId,
+      previousScore: currentScore.overallScore,
+    });
+
+    return await this.healthScoreRepository.save(newScore);
+  }
+
+  async getScoreTrend(userId: string, months: number = 6) {
+    const scores = await this.healthScoreRepository.find({
+      where: { userId },
+      order: { createdAt: 'ASC' },
+    });
+
+    return scores.map((score) => ({
+      date: score.createdAt,
+      score: score.overallScore,
     }));
+  }
+
+  async getScoreComparison(userId: string) {
+    const currentScore = await this.getCurrentScore(userId);
+
+    return {
+      current: currentScore.overallScore,
+      previous: currentScore.previousScore || 0,
+      change: currentScore.overallScore - (currentScore.previousScore || 0),
+    };
+  }
+
+  async getTopOpportunities(userId: string, limit: number = 5) {
+    const currentScore = await this.getCurrentScore(userId);
+
+    return currentScore.opportunities
+      .sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      })
+      .slice(0, limit);
+  }
+
+  private async createDefaultScore(userId: string): Promise<HealthScore> {
+    const defaultScore = this.healthScoreRepository.create({
+      userId,
+      overallScore: 50,
+      breakdown: {
+        insurance: { score: 50, status: 'incomplete' },
+        tax: { score: 50, status: 'incomplete' },
+        credit: { score: 50, status: 'not_verified', trend: 'stable' },
+        claims: { score: 50, status: 'none' },
+        documents: { score: 50, totalCount: 0, organized: 0 },
+      },
+      opportunities: [],
+    });
+
+    return await this.healthScoreRepository.save(defaultScore);
   }
 }
